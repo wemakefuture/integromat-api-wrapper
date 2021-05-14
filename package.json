@@ -2,7 +2,7 @@
   "name": "integromat-node",
   "version": "0.0.1",
   "description": "A NodeJS Wrapper for Integromat 2.0",
-  "main": "index.js",
+  "main": "integromat-node.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/wemakefuture/integromat-node/issues"
   },
-  "homepage": "https://github.com/wemakefuture/integromat-node#readme"
+  "homepage": "https://github.com/wemakefuture/integromat-node#readme",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
 }
