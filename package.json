@@ -1,0 +1,22 @@
+{
+  "name": "integromat-node",
+  "version": "0.0.1",
+  "description": "A NodeJS Wrapper for Integromat 2.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wemakefuture/integromat-node.git"
+  },
+  "keywords": [
+    "integromat"
+  ],
+  "author": "wemakefuture.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wemakefuture/integromat-node/issues"
+  },
+  "homepage": "https://github.com/wemakefuture/integromat-node#readme"
+}
