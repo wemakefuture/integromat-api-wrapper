@@ -3,7 +3,7 @@ var fetch = require('node-fetch');
 
 class Integromat {
     constructor(APIkey) {
-        this.APIkey=APIkey;
+        this.APIkey = APIkey;
         var pathVarsRe = /\${([^\}]+)}/g;
 
         function getPathVars(path) {
@@ -62,7 +62,7 @@ class Integromat {
             return uri;
         }
 
-        function buildWrapperFn(root, parseResult, method, fetchModule, fetchOptions, shouldParseJson) {
+        function buildWrapperFn(root, parseResult, method, fetch, fetchOptions, shouldParseJson) {
             fetchOptions = fetchOptions || {};
 
             if (['patch', 'post', 'put'].indexOf(method) !== -1) {
@@ -83,7 +83,10 @@ class Integromat {
                     options.method = method;
                     options.body = JSON.stringify(body);
 
-                    return fetchModule(uri, options);
+
+                    return fetch(uri, options);
+
+
                 }
             }
             else {
@@ -105,21 +108,19 @@ class Integromat {
                     }
                     options.method = method;
 
-                    return fetchModule(uri, options);
+
+                    return fetch(uri, options);
+
                 }
             }
         }
 
         function getMethodIterator(config, cb) {
             var httpMethods = ['delete', 'get', 'head', 'patch', 'post', 'put'];
-
             httpMethods.forEach(function (method) {
-                var methodMap = config[method];
-
-                if (methodMap) {
-
-                    Object.keys(methodMap).forEach(function (key) {
-                        var value = methodMap[key];
+                if (config[method]) {
+                    Object.keys(config[method]).forEach(function (key) {
+                        var value = config[method][key];
                         cb(method, key, value);
                     });
                 }
@@ -127,9 +128,8 @@ class Integromat {
         }
 
         function create(config) {
-            var root = config.root;
-            var shouldParseJson = config.parseJson;
-            var fetchModule = fetch;
+            var shouldParseJson = true; //config.parseJson;
+
             var wrapper = {};
 
             getMethodIterator(config, function (method, key, value) {
@@ -147,7 +147,7 @@ class Integromat {
                 }
 
                 parseResult = parse(pathPattern);
-                wrapper[key] = buildWrapperFn(root, parseResult, method, fetchModule, fetchOptions, shouldParseJson);
+                wrapper[key] = buildWrapperFn(config.root, parseResult, method, fetch, fetchOptions, shouldParseJson);
             });
 
             return wrapper;
@@ -1114,7 +1114,7 @@ if (typeof require !== 'undefined' && require.main === module) {
         full.templates.list(
             {
             }, {})
-            .then(res => res.json())
+            //.then(res => res.json())
             .then(json => console.log(json));
     })();
 }
