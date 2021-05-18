@@ -1,1122 +1,520 @@
-"use strict";
-var fetch = require('node-fetch');
+function WeMakeFuture( apiKey ) {
 
-class Integromat {
-    constructor(APIkey) {
-        this.APIkey = APIkey;
-        var pathVarsRe = /\${([^\}]+)}/g;
+    var fetch = require('node-fetch');
 
-        function getPathVars(path) {
-            var pathVars = [];
-            var match;
+    // Regular expression that extracts url params
+    var urlParamsRe = /\${([^\}]+)}/g;
+    var mainWrapper = {};
 
-            while ((match = pathVarsRe.exec(path)) !== null) {
-                pathVars.push(match[1]);
-            }
-
-            return pathVars;
+    // Set API's root endpoint
+    var rootEndpoint = 'https://newpath.integromat.cloud/api/v2';
+    
+    // Get path, parse the url params (such as ${hookId}), return url params array
+    function getUrlParams( path ) {
+        var urlParams = [];
+        var match;
+    
+        while ((match = urlParamsRe.exec(path)) !== null) {
+            urlParams.push(match[1]);
         }
-
-        function parse(pathPattern) {
-            var splitByQuestionMark = pathPattern.split('?');
-
-            return {
-                withoutparamsNew: splitByQuestionMark[0],
-                paramsNew: splitByQuestionMark.length > 1 ? splitByQuestionMark[1].split('|') : [],
-                pathVars: getPathVars(pathPattern),
-            };
+    
+        return urlParams;
+    }
+    
+    // Parse the pathPattern, return a new object which includes default path, query params array, and url params array
+    function parseUrl( pathPattern ) {
+        /*Parse pathPattern into two indexed array respect to question mark, as path and query params as below:
+        * [ '/hooks/${hookId}', 'teamId|typeName|assigned|viewForScenarioId' ]
+        */
+        var splitByQuestionMark = pathPattern.split('?');
+    
+        return {
+            withoutQueryParams: splitByQuestionMark[0],
+            queryParams: splitByQuestionMark.length > 1 ? splitByQuestionMark[1].split('|') : [],
+            urlParams: getUrlParams(pathPattern),
+        };
+    }
+    
+    /*Correct the '/' char in case of root string ends with '/' and also pathPattern starts with '/' again, example below:
+    * root: 'https://newpath.integromat.cloud/api/v2/'
+    * pathPattern: '/login'
+    * combination: 'https://newpath.integromat.cloud/api/v2//login'
+    * function output: 'https://newpath.integromat.cloud/api/v2/login'
+    */
+    function urlJoin( a, b ) {
+        if( !a.endsWith('/') ) {
+            a = a + '/';
         }
-
-        function uriJoin(a, b) {
-            if (!a.endsWith('/')) {
-                a = a + '/';
-            }
-
-            if (b.startsWith('/')) {
-                b = b.substr(1);
-            }
-
-            return a + b;
+    
+        if( b.startsWith('/') ) {
+            b = b.substr(1);
         }
-
-        function buildUri(root, args, parseResult) {
-            var uri = uriJoin(root, parseResult.withoutparamsNew);
-            var paramsNew = [];
-
-            Object.keys(args).forEach(function (key) {
-                var value = args[key];
-                var pathVarIndex = parseResult.pathVars.indexOf(key);
-                var paramsNewIndex;
-
-                if (pathVarIndex !== -1) {
-                    uri = uri.replace('${' + key + '}', value);
-                } else if ((paramsNewIndex = parseResult.paramsNew.indexOf(key)) !== -1) {
-                    paramsNew.push(key + '=' + value);
-                }
-            });
-
-            if (paramsNew.length) {
-                uri = uri + '?' + paramsNew.join('&');
+    
+        return a + b;
+    }
+    
+    // Build the URL respect to url params & query params
+    function buildUrl( root, args, parseResult ) {
+        var url = urlJoin(root, parseResult.withoutQueryParams);
+        var queryParams = [];
+    
+        Object.keys(args).forEach(function (key) {
+            var value = args[key];
+            var urlParamIndex = parseResult.urlParams.indexOf(key);
+            var queryParamsIndex;
+    
+            if( urlParamIndex !== -1 ) {
+                // Replaces the '${key}' key pattern with given value while making the call
+                url = url.replace('${' + key + '}', value);
+            } else if( (queryParamsIndex = parseResult.queryParams.indexOf(key)) !== -1 ) {
+                // Adds '=' char after key, adds the value right after '='
+                queryParams.push(key + '=' + value);
             }
-
-            return uri;
+        });
+    
+        if( queryParams.length ) {
+            url = url + '?' + queryParams.join('&');
         }
+    
+        return url;
+    }
 
-        function buildWrapperFn(root, parseResult, method, fetch, fetchOptions, shouldParseJson) {
-            fetchOptions = fetchOptions || {};
+    // Create the fetch function with options and body if exists
+    function buildWrapperFn( root, parseResult, method, fetchModule, fetchOptions, fetchDefaults ) {
+        // Configure and create the fetch function and return to call
+        return function() {
+            // args = the url params and/or query params passed when making the call
+            var args = arguments['0'];
 
-            if (['patch', 'post', 'put'].indexOf(method) !== -1) {
-                return function () {
-                    var args = arguments['0'];
-                    var body = arguments['1'];
-                    var morefetchOptions = arguments.length === 4 ? arguments['2'] : {};
-                    var uri = buildUri(root, args, parseResult);
-
-                    Object.assign(fetchOptions, morefetchOptions);
-
-                    if (fetchOptions) {
-                        var options = fetchOptions;
-                    }
-                    else {
-                        var options = {};
-                    }
-                    options.method = method;
-                    options.body = JSON.stringify(body);
-
-
-                    return fetch(uri, options);
-
-
+            /*Custom options can be entered as 3rd param when making the call
+            * This will overwrite the config options, example below:
+            * await base.auth.login({}, {}, 
+                {
+                    cache: 'no-cache',
+                    credentials: 'same-origin',
+                    headers: [
+                        [ 'content-type', 'application/json' ]
+                        [ 'Authorization', "authorization_token" ]
+                    ]
                 }
+            )
+            */
+
+            if( arguments.length === 3 ) {
+                fetchOptions = arguments['2'];
             }
-            else {
-                return function () {
-                    var args = arguments['0'];
-                    var morefetchOptions = arguments.length === 3 ? arguments['1'] : {};
 
-                    var uri = buildUri(root, args, parseResult);
+            // Build the last version of the url with root, url params, and query params
+            var url = buildUrl(root, args, parseResult);
 
-                    Object.assign(fetchOptions, morefetchOptions);
-                    fetchOptions.uri = uri;
-                    fetchOptions.method = method.toUpperCase();
-
-                    if (fetchOptions) {
-                        var options = fetchOptions;
-                    }
-                    else {
-                        var options = {};
-                    }
-                    options.method = method;
-
-
-                    return fetch(uri, options);
-
-                }
+            // Use default options if exists, else create new options with method and body
+            if( fetchOptions != undefined && fetchOptions && fetchOptions != {} ) {
+                var options = fetchOptions;
+            } else if( fetchDefaults != undefined && fetchDefaults && fetchDefaults != {} ) {
+                var options = fetchDefaults;
+            } else {
+                var options = {};
             }
+            
+            // Assign method to options
+            options.method = method.toUpperCase();
+
+            // The body json passed when making the call, if fetch is patch, post or put request
+            if( [ 'patch', 'post', 'put' ].includes(method) )
+            {
+                var body = arguments['1'];
+                options.body = JSON.stringify(body);
+            }
+            
+            // Make the fetch call
+            return fetchModule(url, options);
         }
-
-        function getMethodIterator(config, cb) {
-            var httpMethods = ['delete', 'get', 'head', 'patch', 'post', 'put'];
-            httpMethods.forEach(function (method) {
-                if (config[method]) {
-                    Object.keys(config[method]).forEach(function (key) {
-                        var value = config[method][key];
-                        cb(method, key, value);
-                    });
-                }
-            });
-        }
-
-        function create(config) {
-            var shouldParseJson = true; //config.parseJson;
-
-            var wrapper = {};
-
-            getMethodIterator(config, function (method, key, value) {
-                var pathPattern;
-                var fetchOptions;
-                var parseResult;
-
-                if (typeof value === 'string') {
-                    pathPattern = value;
-                    fetchOptions = null;
-                }
-                else {
-                    pathPattern = value.pathPattern;
-                    fetchOptions = value.fetchOptions;
-                }
-
-                parseResult = parse(pathPattern);
-                wrapper[key] = buildWrapperFn(config.root, parseResult, method, fetch, fetchOptions, shouldParseJson);
-            });
-
-            return wrapper;
-        }
-
-        this.auth = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            post: {
-                login: {
-                    pathPattern: '/login',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ]
-                        ]
-                    }
-                },
-                logout: {
-                    pathPattern: '/logout',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ]
-                        ]
-                    }
-                },
-                oauthLogin: {
-                    pathPattern: '/sso/login',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ]
-                        ]
-                    }
-                },
-                authorize: {
-                    pathPattern: '/sso/authorize',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.connections = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/connections?teamId|type[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/connections/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            post: {
-                create: {
-                    pathPattern: '/connections?teamId|inspector',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                test: {
-                    pathPattern: '/connections/${connectionId}/test',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                scoped: {
-                    pathPattern: '/connections/${connectionId}/scoped',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                setData: {
-                    pathPattern: '/connections/${connectionId}/set-data?reauthorize',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            patch: {
-                partialUpdate: {
-                    pathPattern: '/connections/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            delete: {
-                delete: {
-                    pathPattern: '/connections/${connectionId}?confirmed',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.hooks = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/hooks?teamId|typeName|assigned|viewForScenarioId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/hooks/${hookId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                ping: {
-                    pathPattern: '/hooks/${hookId}/ping',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            post: {
-                create: {
-                    pathPattern: '/hooks?inspector',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                learnStart: {
-                    pathPattern: '/hooks/${hookId}/learn-start',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                learnStop: {
-                    pathPattern: '/hooks/${hookId}/learn-stop',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                enable: {
-                    pathPattern: '/hooks/${hookId}/enable',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                disable: {
-                    pathPattern: '/hooks/${hookId}/disable',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                setData: {
-                    pathPattern: '/hooks/${hookId}/set-data?reauthorize',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            delete: {
-                delete: {
-                    pathPattern: '/hooks/${hookId}?confirmed',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-            }
-        });
-
-        this.hooks.incomings = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/hooks/${hookId}/incomings?pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/hooks/${hookId}/incomings/${incomingId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                stats: {
-                    pathPattern: '/hooks/${hookId}/incomings/stats',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-            },
-            delete: {
-                delete: {
-                    pathPattern: '/hooks/${hookId}/incomings/',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.oauth = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                authorize: {
-                    pathPattern: '/oauth/auth/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                reauthorize: {
-                    pathPattern: '/oauth/reauth/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                extend: {
-                    pathPattern: '/oauth/extend/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                oauthCallback: {
-                    pathPattern: '/oauth/cb/${connectionType}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                oauthCallbackId: {
-                    pathPattern: '/oauth/cb/${connectionType}/${connectionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.scenarios = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/scenarios?organizationId|folderId|teamId|id[]|islinked|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/scenarios/${scenarioId}?organizationId|folderId|islinked',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                blueprint: {
-                    pathPattern: '/scenarios/${scenarioId}/blueprint?blueprintId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                triggers: {
-                    pathPattern: '/scenarios/${scenarioId}/triggers?blueprintId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            post: {
-                clone: {
-                    pathPattern: '/scenarios/${scenarioId}/clone?organizationId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                create: {
-                    pathPattern: '/scenarios',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                start: {
-                    pathPattern: '/scenarios/${scenarioId}/start',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                publish: {
-                    pathPattern: '/scenarios/${scenarioId}/publish',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                stop: {
-                    pathPattern: '/scenarios/${scenarioId}/stop',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            patch: {
-                partialUpdate: {
-                    pathPattern: '/scenarios/${scenarioId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            put: {
-                setData: {
-                    pathPattern: '/scenarios/${scenarioId}/data',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            delete: {
-                delete: {
-                    pathPattern: 'scenarios/${scenarioId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.scenarios.logs = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/scenarios/${scenarioId}/logs?from|to|status|pg[sortBy]|pg[last]|pg[showLast]|pg[sortDir]|pg[limit]|showCheckRuns',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                executionLog: {
-                    pathPattern: '/scenarios/${scenarioId}/logs/${executionId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.scenarios.blueprints = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/scenarios/${scenarioId}/blueprints?|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.scenarios.consumptions = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/scenarios/consumptions?teamId|organizationId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.templates = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/templates?cols[]|usedApps[]|teamId|public|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/templates/${templateId}?cols[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                blueprint: {
-                    pathPattern: '/templates/1/blueprint?forUse|templatePublicId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            post: {
-                create: {
-                    pathPattern: '/templates?cols[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                publish: {
-                    pathPattern: '/templates/${templateId}/publish?cols[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                requestApproval: {
-                    pathPattern: '/templates/${templateId}/request-approval?cols[]|templatePublicId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            patch: {
-                partialUpdate: {
-                    pathPattern: '/templates/${templateId}?cols[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            },
-            delete: {
-                delete: {
-                    pathPattern: '/templates/${templateId}',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
-            }
-        });
-
-        this.templates.public = create({
-            root: 'https://newpath.integromat.cloud/api/v2',
-            get: {
-                list: {
-                    pathPattern: '/templates/public?includeEn|usedApps[]|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                detail: {
-                    pathPattern: '/templates/public/${templateUrl}?templatePublicId|cols[]',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                },
-                blueprint: {
-                    pathPattern: '/templates/public/${templateUrl}/blueprint?templatePublicId',
-                    fetchOptions: {
-                        headers: [
-                            [
-                                'content-type',
-                                'application/json'
-                            ],
-                            [
-                                'Authorization',
-                                'Token ' + this.APIkey
-                            ]
-                        ]
-                    }
-                }
+    }
+    
+    // Parse the config object respect to methods
+    function getMethodIterator( config, callback ) {
+        var httpMethods = ['delete', 'get', 'head', 'patch', 'post', 'put'];
+    
+        httpMethods.forEach(function (method) {
+            var methodMap = config[method];
+    
+            // Example methodMap: { pathPattern: '/login', fetchOptions: { headers: [ [Array] ] } }
+            if( methodMap ) {
+                
+                Object.keys(methodMap).forEach( function (key) {
+                    var value = methodMap[key];
+                    // Example callback: callback( "post", "login", { pathPattern: '/login', fetchOptions: { headers: [ [Array] ] } })
+                    callback(method, key, value);
+                });
             }
         });
     }
 
+    // Create the wrapper
+    function create( config ) {
+
+        // Root path of API endpoint
+        var root = config.root;
+
+        // NPM Node-Fetch
+        var fetchModule = fetch;
+
+        // Wrapper object to be returned at the end
+        var wrapper = {};
+    
+        // Example function(method, key, value): function( "post", "login", { pathPattern: '/login', fetchOptions: { headers: [ [Array] ] } })
+        getMethodIterator( config, function( method, key, value ) {
+            var pathPattern;
+            var fetchOptions;
+            var parseResult;
+
+            /* If statement for basic call definition 
+            * Instead of defining calls as object with pathPattern and fetchOptions
+            * we can also define them in a single line as below:
+            * login: '/login'
+            * And this makes the value variable's type string, thus there will be no fetchOptions */
+            if ( typeof value === 'string' ) {
+                pathPattern = value;
+                fetchOptions = null;
+            }
+            else {
+                pathPattern = value.pathPattern;
+                fetchOptions = value.fetchOptions;
+            }
+            
+            // Parse the pathPattern and create a new object which includes default path, query params array, and url params array, assigns to parseResult
+            parseResult = parseUrl(pathPattern);
+
+            /*Create the fetch function to given key inside main wrapper object, for example wrapper["login"] = fetch()
+            * Detailed example buildWrapperFn function call:
+            
+            * buildWrapperFn( "https://newpath.integromat.cloud/api/v2", 
+               { withoutQueryParams:'/hooks/${hookId}', queryParams: [ 'teamId', 'typeName', 'assigned', 'viewForScenarioId' ], urlParams: [ 'hookId' ] },
+               "post",
+               fetch,
+               { headers: [ [ 'content-type', 'application/json' ] ] },
+               { headers: [ [ 'content-type', 'application/json' ], [ 'Authorization', "Token " + apiKey ] ] }
+             }) */
+            wrapper[key] = buildWrapperFn( root, parseResult, method, fetchModule, fetchOptions, config.fetchDefaults );
+        });
+    
+        return wrapper;
+    }
+    
+    // Auth endpoint config
+    mainWrapper.auth = create({
+        root: rootEndpoint,
+        post: {
+            login: {
+                pathPattern: '/login',
+            fetchOptions: {
+                headers: [
+                    [
+                        'content-type',
+                        'application/json'
+                    ]
+                ]
+            }
+            },
+            logout: {
+                pathPattern: '/logout',
+            fetchOptions: {
+                headers: [
+                    [
+                        'content-type',
+                        'application/json'
+                    ]
+                ]
+            }
+            },
+            oauthLogin: {
+                pathPattern: '/sso/login',
+            fetchOptions: {
+                headers: [
+                    [
+                        'content-type',
+                        'application/json'
+                    ]
+                ]
+            }
+            },
+            authorize: {
+                pathPattern: '/sso/authorize',
+                fetchOptions: {
+                    headers: [
+                        [
+                            'content-type',
+                            'application/json'
+                        ],
+                        [
+                            'Authorization',
+                            "Token " + apiKey
+                        ]
+                    ]
+                }
+            }
+        }
+    });
+    
+    // Connections endpoint config
+    mainWrapper.connections = create({
+        root: rootEndpoint,
+        get: {
+            list: '/connections?teamId|type[]',
+            detail: '/connections/${connectionId}'
+        },
+        post: {
+            create: '/connections?teamId|inspector',
+            test: '/connections/${connectionId}/test',
+            scoped: '/connections/${connectionId}/scoped',
+            setData: '/connections/${connectionId}/set-data?reauthorize'
+        },
+        patch: {
+            partialUpdate: '/connections/${connectionId}'
+        },
+        delete: {
+            delete: '/connections/${connectionId}?confirmed'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Hooks endpoint config
+    mainWrapper.hooks = create({
+        root: rootEndpoint,
+        get: {
+            list: '/hooks?teamId|typeName|assigned|viewForScenarioId',
+            detail: '/hooks/${hookId}',
+            ping: '/hooks/${hookId}/ping'
+        },
+        post: {
+            create: '/hooks?inspector',
+            learnStart: '/hooks/${hookId}/learn-start',
+            learnStop: '/hooks/${hookId}/learn-stop',
+            enable: '/hooks/${hookId}/enable',
+            disable: '/hooks/${hookId}/disable',
+            setData: '/hooks/${hookId}/set-data?reauthorize'
+        },
+        delete: {
+            delete: '/hooks/${hookId}?confirmed',
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Hooks.Incoming endpoint config
+    mainWrapper.hooks.incomings = create({
+        root: rootEndpoint,
+        get: {
+            list: '/hooks/${hookId}/incomings?pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
+            detail:'/hooks/${hookId}/incomings/${incomingId}',
+            stats: '/hooks/${hookId}/incomings/stats',
+        },
+        delete: {
+            delete: '/hooks/${hookId}/incomings/'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // OAuth endpoint config
+    mainWrapper.oauth = create({
+        root: rootEndpoint,
+        get: {
+            authorize: '/oauth/auth/${connectionId}',
+            reauthorize: '/oauth/reauth/${connectionId}',
+            extend: '/oauth/extend/${connectionId}',
+            oauthCallback: '/oauth/cb/${connectionType}',
+            oauthCallbackId: '/oauth/cb/${connectionType}/${connectionId}'
+        }
+    });
+    
+    // Scenarios endpoint config
+    mainWrapper.scenarios = create({
+        root: rootEndpoint,
+        get: {
+            list: '/scenarios?organizationId|folderId|teamId|id[]|islinked|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
+            detail: '/scenarios/${scenarioId}?organizationId|folderId|islinked',
+            blueprint: '/scenarios/${scenarioId}/blueprint?blueprintId',
+            triggers: '/scenarios/${scenarioId}/triggers?blueprintId'
+        },
+        post: {
+            clone: '/scenarios/${scenarioId}/clone?organizationId',
+            create: '/scenarios',
+            start: '/scenarios/${scenarioId}/start',
+            publish: '/scenarios/${scenarioId}/publish',
+            stop: '/scenarios/${scenarioId}/stop'
+        },
+        patch: {
+            partialUpdate: '/scenarios/${scenarioId}'
+        },
+        put: {
+            setData: '/scenarios/${scenarioId}/data'
+        },
+        delete: {
+            delete: 'scenarios/${scenarioId}'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Scenarios.Logs endpoint config
+    mainWrapper.scenarios.logs = create({
+        root: rootEndpoint,
+        get: {
+            list: '/scenarios/${scenarioId}/logs?from|to|status|pg[sortBy]|pg[last]|pg[showLast]|pg[sortDir]|pg[limit]|showCheckRuns',
+            executionLog: '/scenarios/${scenarioId}/logs/${executionId}'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Scenarios.Blueprints endpoint config
+    mainWrapper.scenarios.blueprints = create({
+        root: rootEndpoint,
+        get: {
+            list: '/scenarios/${scenarioId}/blueprints?|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Scenarios.Consumptions endpoint config
+    mainWrapper.scenarios.consumptions = create({
+        root: rootEndpoint,
+        get: {
+            list: '/scenarios/consumptions?teamId|organizationId'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Templates endpoint config
+    mainWrapper.templates = create({
+        root: rootEndpoint,
+        get: {
+            list: '/templates?cols[]|usedApps[]|teamId|public|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
+            detail: '/templates/${templateId}?cols[]',
+            blueprint: '/templates/1/blueprint?forUse|templatePublicId'
+        },
+        post: {
+            create: '/templates?cols[]',
+            publish: '/templates/${templateId}/publish?cols[]',
+            requestApproval: '/templates/${templateId}/request-approval?cols[]|templatePublicId'
+        },
+        patch: {
+            partialUpdate: '/templates/${templateId}?cols[]'
+        },
+        delete: {
+            delete: '/templates/${templateId}'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+    
+    // Templates.Public endpoint config
+    mainWrapper.templates.public = create({
+        root: rootEndpoint,
+        get: {
+            list: '/templates/public?includeEn|usedApps[]|cols[]|pg[sortBy]|pg[offset]|pg[sortDir]|pg[limit]',
+            detail: '/templates/public/${templateUrl}?templatePublicId|cols[]',
+            blueprint: '/templates/public/${templateUrl}/blueprint?templatePublicId'
+        },
+        fetchDefaults: {
+            headers: [
+                [
+                    'content-type',
+                    'application/json'
+                ],
+                [
+                    'Authorization',
+                    "Token " + apiKey
+                ]
+            ]
+        }
+    });
+
+    return mainWrapper;
 }
 
-
-if (typeof require !== 'undefined' && require.main === module) {
-
-    (async function () {
-        var full = new Integromat("ecb80230-6b5a-4795-8d04-bd4e46cf1941")
-        full.templates.list(
-            {
-            }, {})
-            //.then(res => res.json())
-            .then(json => console.log(json));
-    })();
-}
-
-module.exports.integromat = Integromat;
+let base = WeMakeFuture("api_key");
