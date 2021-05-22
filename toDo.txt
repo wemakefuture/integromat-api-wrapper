@@ -1,2 +1,6 @@
-Find out what scheduling is:
+Find out what the possible values of scheduling are:
 - "{\"type\":\"indefinitely\",\"interval\":900}"
+- { type: 'immediately', interval: 900 }
+
+Check if first module is a webhook and then create a new one automatically
+
