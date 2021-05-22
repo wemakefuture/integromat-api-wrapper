@@ -1,4 +1,4 @@
-await base.hooks.incomings.list(
+await integromat.hooks.incomings.list(
     {
         "hookId": 0,
         "pg[sortBy]": "string",
@@ -9,7 +9,7 @@ await base.hooks.incomings.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.incomings.detail(
+await integromat.hooks.incomings.detail(
     {
         "hookId": 0,
         "incomingId": "string"
@@ -17,14 +17,14 @@ await base.hooks.incomings.detail(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.incomings.stats(
+await integromat.hooks.incomings.stats(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.incomings.delete(
+await integromat.hooks.incomings.delete(
     {
         "hookId": 0,
         "confirmed": false
@@ -37,7 +37,7 @@ await base.hooks.incomings.delete(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.list(
+await integromat.hooks.list(
     {
         "teamId": 0,
         "typeName": "string",
@@ -47,21 +47,21 @@ await base.hooks.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.detail(
+await integromat.hooks.detail(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.ping(
+await integromat.hooks.ping(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.create(
+await integromat.hooks.create(
     {
         "inspector": 0
     },
@@ -75,35 +75,35 @@ await base.hooks.create(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.learnStart(
+await integromat.hooks.learnStart(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.learnStop(
+await integromat.hooks.learnStop(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.enable(
+await integromat.hooks.enable(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.disable(
+await integromat.hooks.disable(
     {
         "hookId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.setData(
+await integromat.hooks.setData(
     {
         "hookId": 0,
         "reauthorize": 0
@@ -118,7 +118,7 @@ await base.hooks.setData(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.hooks.delete(
+await integromat.hooks.delete(
     {
         "hookId": 0,
         "confirmed": false

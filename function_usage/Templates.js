@@ -1,4 +1,4 @@
-await base.templates.list(
+await integromat.templates.list(
     {
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')",
         "usedApps[]": "Enum('postgres' | 'http')",
@@ -12,7 +12,7 @@ await base.templates.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.detail(
+await integromat.templates.detail(
     {
         "templateId": 0,
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'published' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')"
@@ -20,7 +20,7 @@ await base.templates.detail(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.blueprint(
+await integromat.templates.blueprint(
     {
         "forUse": false,
         "templatePublicId": 0
@@ -28,7 +28,7 @@ await base.templates.blueprint(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.create(
+await integromat.templates.create(
     {
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')"
     },
@@ -42,7 +42,7 @@ await base.templates.create(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.partialUpdate(
+await integromat.templates.partialUpdate(
     {
         "templateId": 0,
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')"
@@ -53,7 +53,7 @@ await base.templates.partialUpdate(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.publish(
+await integromat.templates.publish(
     {
         "templateId": 0,
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')"
@@ -61,7 +61,7 @@ await base.templates.publish(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.requestApproval(
+await integromat.templates.requestApproval(
     {
         "templateId": 0,
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'description' | 'usedApps' | 'public' | 'approvedId' | 'publishedId' | 'publicUrl' | 'published' | 'approved' | 'publishedName' | 'approvedName')",
@@ -70,14 +70,14 @@ await base.templates.requestApproval(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.delete(
+await integromat.templates.delete(
     {
         "templateId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.public.list(
+await integromat.templates.public.list(
     {
         "includeEn": false,
         "name": "string",
@@ -91,7 +91,7 @@ await base.templates.public.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.public.detail(
+await integromat.templates.public.detail(
     {
         "templateUrl": "string",
         "templatePublicId": 0,
@@ -100,7 +100,7 @@ await base.templates.public.detail(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.templates.public.blueprint(
+await integromat.templates.public.blueprint(
     {
         "templateUrl": "string",
         "templatePublicId": 0

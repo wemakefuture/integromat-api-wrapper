@@ -1,4 +1,4 @@
-const Integromat = require("../integromat-node.js").integromat;
+const Integromat = require("../integromat-node.js");
 
 (async function () {
 

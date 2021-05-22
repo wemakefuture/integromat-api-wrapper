@@ -1,4 +1,4 @@
-await base.auth.login({},
+await integromat.auth.login({},
     {
         "email": "string",
         "password": "string"
@@ -6,11 +6,11 @@ await base.auth.login({},
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.auth.logout({}, {})
+await integromat.auth.logout({}, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.auth.oauthLogin({},
+await integromat.auth.oauthLogin({},
     {
         "code": "string",
         "state": "string"
@@ -18,7 +18,7 @@ await base.auth.oauthLogin({},
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.auth.authorize({},
+await integromat.auth.authorize({},
     {
         "redirect": "string"
     })

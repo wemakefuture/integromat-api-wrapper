@@ -521,12 +521,12 @@ class Integromat {
 if (typeof require !== 'undefined' && require.main === module) {
 
     (async function () {
-        var full = new Integromat("ecb80230-6b5a-4795-8d04-bd4e46cf1941")
-        full.templates.list(
+        var integromat = new Integromat("ecb80230-6b5a-4795-8d04-bd4e46cf1941")
+        integromat.templates.list(
             {
             }, {})
             .then(res => res.json())
             .then(json => console.log(json));
     })();
 }
-module.exports.integromat = Integromat;
+module.exports = Integromat;

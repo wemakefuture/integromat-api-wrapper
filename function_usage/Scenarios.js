@@ -1,4 +1,4 @@
-await base.scenarios.logs.list(
+await integromat.scenarios.logs.list(
     {
         "scenarioId": 0,
         "from": 0,
@@ -15,7 +15,7 @@ await base.scenarios.logs.list(
     .then(json => console.log(json));
 
 
-await base.scenarios.logs.executionLog(
+await integromat.scenarios.logs.executionLog(
     {
         "scenarioId": 0,
         "executionId": "string"
@@ -23,7 +23,7 @@ await base.scenarios.logs.executionLog(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.blueprints.list(
+await integromat.scenarios.blueprints.list(
     {
         "scenarioId": 0,
         "cols[]": "Enum('id' | 'name' | 'teamId' | 'concept' | 'createdBySupport' | 'deleted' | 'description' | 'folderId' | 'isinvalid' | 'islinked' | 'islocked' | 'ispaused' | 'lastEdit' | 'usedPackages')",
@@ -35,7 +35,7 @@ await base.scenarios.blueprints.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.consumptions.list(
+await integromat.scenarios.consumptions.list(
     {
         "teamId": 0,
         "organizationId": 0
@@ -43,7 +43,7 @@ await base.scenarios.consumptions.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.list(
+await integromat.scenarios.list(
     {
         "organizationId": 0,
         "folderId": 0,
@@ -59,7 +59,7 @@ await base.scenarios.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.detail(
+await integromat.scenarios.detail(
     {
         "scenarioId": 0,
         "organizationId": 0,
@@ -69,7 +69,7 @@ await base.scenarios.detail(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.blueprint(
+await integromat.scenarios.blueprint(
     {
         "scenarioId": 0,
         "blueprintId": 0
@@ -77,7 +77,7 @@ await base.scenarios.blueprint(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.triggers(
+await integromat.scenarios.triggers(
     {
         "scenarioId": 0,
         "blueprintId": 0
@@ -85,7 +85,7 @@ await base.scenarios.triggers(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.clone(
+await integromat.scenarios.clone(
     {
         "scenarioId": 0,
         "organizationId": 0
@@ -101,7 +101,7 @@ await base.scenarios.clone(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.create({},
+await integromat.scenarios.create({},
     {
         "blueprint": "string",
         "teamId": 0,
@@ -113,28 +113,28 @@ await base.scenarios.create({},
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.start(
+await integromat.scenarios.start(
     {
         "scenarioId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.publish(
+await integromat.scenarios.publish(
     {
         "scenarioId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.stop(
+await integromat.scenarios.stop(
     {
         "scenarioId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.partialUpdate(
+await integromat.scenarios.partialUpdate(
     {
         "scenarioId": 0
     },
@@ -148,7 +148,7 @@ await base.scenarios.partialUpdate(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.setData(
+await integromat.scenarios.setData(
     {
         "scenarioId": 0
     },
@@ -158,7 +158,7 @@ await base.scenarios.setData(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.scenarios.delete(
+await integromat.scenarios.delete(
     {
         "scenarioId": 0
     }, {})

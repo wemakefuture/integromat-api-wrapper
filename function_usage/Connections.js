@@ -1,4 +1,4 @@
-await base.connections.create(
+await integromat.connections.create(
     {
         "teamId": 0,
         "inspector": 0
@@ -13,14 +13,14 @@ await base.connections.create(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.test(
+await integromat.connections.test(
     {
         "connectionId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.list(
+await integromat.connections.list(
     {
         "teamId": 0,
         "type[]": "Enum('openweathermap')"
@@ -28,14 +28,14 @@ await base.connections.list(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.detail(
+await integromat.connections.detail(
     {
         "connectionId": 0
     }, {})
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.scoped(
+await integromat.connections.scoped(
     {
         "connectionId": 0
     },
@@ -45,7 +45,7 @@ await base.connections.scoped(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.setData(
+await integromat.connections.setData(
     {
         "connectionId": 0,
         "reauthorize": 0
@@ -64,7 +64,7 @@ await base.connections.setData(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.partialUpdate(
+await integromat.connections.partialUpdate(
     {
         "connectionId": 0
     },
@@ -74,7 +74,7 @@ await base.connections.partialUpdate(
     .then(res => res.json())
     .then(json => console.log(json));
 
-await base.connections.delete(
+await integromat.connections.delete(
     {
         "connectionId": 0,
         "confirmed": false
