@@ -1,3 +1,8 @@
+#### Notes:
+Creating a general Software could be difficult
+Copying existing flows is fine :-)
+
+#### TODO:
 Find out what the possible values of scheduling are:
 - "{\"type\":\"indefinitely\",\"interval\":900}"
 - { type: 'immediately', interval: 900 }
